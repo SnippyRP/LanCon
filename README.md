@@ -1,1 +1,1 @@
-# LanCon
+LanCon Config
