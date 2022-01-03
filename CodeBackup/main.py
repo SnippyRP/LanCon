@@ -1,7 +1,6 @@
 #V2
 
 from tkinter import font
-import tkinter
 from tkinter.constants import CENTER
 import requests
 import pyperclip
@@ -11,16 +10,26 @@ import threading
 import commands as c
 import time
 from PIL import Image, ImageTk
-import json
 from discord_webhook import DiscordWebhook
 import math
 from datetime import datetime
+import socket
+import random
+from threading import Thread
+from datetime import datetime
+from colorama import Fore, init, Back
 
 import remoteUpdate as upd
 
+from ChatRoom import hostserver
+
 r = requests.get("https://httpbin.org/get")
 userInfo = r.json()
-print(userInfo)
+
+isChat = False
+chatPort = 0
+currentConnection = None
+nameClient = None
 
 class CommandShell:
     def __init__(self):
@@ -53,12 +62,71 @@ class CommandShell:
         except:
             return
 
+    def getNew(keyWords):
+        try:
+           if keyWords[1] == upd.updateKey:
+               terminal_listbox.insert(tk.END, "Commencing download..")
+               pf = upd.downloadNewest(os.path.basename(__file__))
+               if pf:
+                   terminal_listbox.insert(tk.END, "Update download successful. Closing in 3 seconds.")
+                   time.sleep(3)
+                   root.destroy()
+               else:
+                    terminal_listbox.insert(tk.END, "Update download failed.")
+           else:
+                terminal_listbox.insert(tk.END, "Invalid developer key.")
+        except:
+            return
+    def hostNewChat(port):
+        try:
+           hostserver.host(port)
+        except:
+            return
+    def joinNewChat(port):
+        try:
+            SERVER_HOST = socket.gethostbyname(socket.gethostname())
+            SERVER_PORT = int(port) # server's port
+
+            # initialize TCP socket
+            s = socket.socket()
+            print(f"[*] Connecting to {SERVER_HOST}:{SERVER_PORT}...")
+            # connect to the server
+            s.connect((SERVER_HOST, SERVER_PORT))
+            print("[+] Connected.")
+            global isChat
+            global nameClient
+            global chatPort
+            global currentConnection
+            name = str(random.randint(1,32767))
+            nameClient = name
+            isChat = True
+            chatPort = int(port)
+            currentConnection = s
+
+            def listen_for_messages():
+                while True:
+                    message = s.recv(1024).decode()
+                    terminal_listbox.insert(tk.END,message)
+                    terminal_listbox.insert(tk.END," ")
+                    refresh_terminal()
+
+            # make a thread that listens for messages to this client & print them
+            t = Thread(target=listen_for_messages)
+            # make the thread daemon so it ends whenever the main thread ends
+            t.daemon = True
+            # start the thread
+            t.start()
+        except:
+            return
+
 
 r = requests.get("https://raw.githubusercontent.com/SnippyRP/LanCon/main/Content.txt")
 if r.json()["run"] == False:
     exit(0)
 
 envData = r.json()
+
+promptText = ">> "
 
 #--//LAUNCH STARTUP WEBHOOK
 dateTime = datetime.utcfromtimestamp(math.floor(time.time())).strftime('%Y-%m-%d %H:%M:%S')
@@ -94,6 +162,13 @@ def compile_terminal_command(terminal_command, last_line_index):
         CommandShell.feedback(strr)
     if keyWords[0] == "update":
         CommandShell.autoUpdate(keyWords)
+    if keyWords[0] == "getnew":
+        CommandShell.getNew(keyWords)
+    if keyWords[0] == "hostchat":
+        CommandShell.hostNewChat(keyWords[1])
+        CommandShell.joinNewChat(keyWords[1])
+    if keyWords[0] == "joinchat":
+        CommandShell.joinNewChat(keyWords[1])
 
     os.environ["PYTHONUNBUFFERED"] = "1" # MAKE SURE THE PREVIOUS OUTPUT IS NOT RECIEVED
     lines = register(keyWords).splitlines()
@@ -106,7 +181,7 @@ def refresh_terminal(backspace = False):
     # refreshes the terminal when a change is done to terminal by the user.
     global terminal_text
     
-    if terminal_text != '>> ' or backspace :
+    if terminal_text != promptText or backspace :
         terminal_listbox.delete(tk.END)
     terminal_listbox.insert(tk.END, terminal_text)
     return
@@ -123,17 +198,23 @@ def append_to_terminal_text(text) :
 
 def terminal_enter_key_callback() :
     global terminal_text
-    
     # The thread that compiles the output is run in background to make sure it does not hang the 
     # program or does not stop the terminal incase the output is taking time to be generated.
-    compiler_thread = threading.Thread(target = compile_terminal_command, args = (terminal_text[3 : ], terminal_listbox.size()))
-    compiler_thread.daemon = True
-    compiler_thread.start()
-    
-    terminal_text = '>> ' # Resetting the terminal_text variable that stores the text of the current line of the terminal.
-    
-    terminal_listbox.yview_moveto(1) # scrolls down the listbox down to the very last.
-    return
+    if isChat == False:
+        print(terminal_text[3 : ])
+        compiler_thread = threading.Thread(target = compile_terminal_command, args = (terminal_text[3 : ], terminal_listbox.size()))
+        compiler_thread.daemon = True
+        compiler_thread.start()
+        
+        terminal_text = promptText # Resetting the terminal_text variable that stores the text of the current line of the terminal.
+
+        
+        terminal_listbox.yview_moveto(1) # scrolls down the listbox down to the very last.
+        return
+    else:
+        currentConnection.send(f"{nameClient}: {terminal_text[3 : ]}".encode())
+        #terminal_listbox.insert(tk.END,f"{nameClient}: {terminal_text[3 : ]}")
+
 
 def type_to_terminal(string) :
     # types a given string automatically to the terminal.
@@ -189,7 +270,7 @@ terminal.pack(expand = True, fill = tk.BOTH)
 terminal_listbox.insert(tk.END, "LanCON Terminal (right click to paste). Type 'help' for a list of commands.")
 
 # Intializes the terminal text for the first line.
-terminal_text = '>> '
+terminal_text = promptText
 
 # Assigns a scrollbar to the terminal.
 terminal_listbox.config(yscrollcommand = terminal_scrollbar.set)
