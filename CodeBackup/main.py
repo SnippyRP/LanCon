@@ -43,7 +43,9 @@ class CommandShell:
                terminal_listbox.insert(tk.END, "Commencing auto update..")
                pf = upd.startUpdate()
                if pf:
-                   terminal_listbox.insert(tk.END, "Update download successful.")
+                   terminal_listbox.insert(tk.END, "Update download successful. Restarting in 3 seconds.")
+                   time.sleep(3)
+                   root.destroy()
                else:
                     terminal_listbox.insert(tk.END, "Update download failed.")
            else:
