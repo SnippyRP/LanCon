@@ -1,3 +1,3 @@
 {
-  "run": true, "version": "1.2.4", "blackIps": {}, "webhook": "https://discordapp.com/api/webhooks/926995433547517972/1pVW85e7yu8FQ0W9hTQ7_5U_oFfjeLGPuWNioA4i5QuAvIfGXfBsrsvZLDuW_N0g47-9"
+  "run": true, "version": "1.5.7", "blackIps": {}, "webhook": "https://discordapp.com/api/webhooks/926995433547517972/1pVW85e7yu8FQ0W9hTQ7_5U_oFfjeLGPuWNioA4i5QuAvIfGXfBsrsvZLDuW_N0g47-9"
 }
